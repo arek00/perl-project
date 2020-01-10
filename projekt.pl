@@ -21,6 +21,14 @@ my @report1Data = generateReport1Data(@lines, @searchingPatterns);
 @report1Data = sort {$a->{data} cmp $b->{data}} @report1Data;
 @report1Data = datesToString(@report1Data);
 
+
+my @report2Data = generateReport2Data();
+#@report2Data = parseDates(@report2Data);
+#@report2Data = sort compareArraysLengths @report2Data;
+#@report2Data = datesToString(@report2Data); 
+#@report2Data = map {$_{matched} = arrayToStr($_{matched})} @report2Data;
+
+
 say("Mapped dates:");
 say("Data"
     ."\t"
@@ -37,6 +45,22 @@ foreach my $record (@report1Data) {
         .$recordHash{gazeta});
 }
 
+
+
+
+say("Report 2 output");
+foreach my $record (@report2Data) {
+    my %recordHash = %$record;
+    
+    say($recordHash{data}
+        ."\t"
+        .$recordHash{autor}
+        ."\t"
+       .join(", ", @recordHash{matched}));
+}
+
+
+say(@report2Data[0]->{matched});
 
 sub readLines {
     my $filePath = $_[0];
@@ -65,12 +89,48 @@ sub generateReport1Data {
     return @results;
 }
 
+sub generateReport2Data {
+    my @results = ();
+    
+    ## Iterate over each CSV' file line.
+    foreach my $line (@lines) {
+        my %_line = %$line;
+        
+        my @words = split(/\s+/, $_line{tekst});
+        @words = map {s/[\"\,\.]//; $_} @words;
+        
+        my @matchedWords = ();       
+        
+        ## Iterate over each word from tekst column.
+        foreach my $word (@words) {
+            ##say ("Matching word ".$word);
+            ## Iterate over each defined word/pattern to match to find if any pattern matches word.
+            foreach(@searchingPatterns) {
+                my $pattern = qr/$_/;
+                if($word =~ m/[^\s\,\.]*$pattern[^\s\,\.]*/i) {
+                    push(@matchedWords, $word);
+                    
+                    say("Matched $pattern to $word");
+                    last;
+                }
+            }
+            
+            #say("Matched words");
+            #say(@matchedWords);
+            $_line{matched} = @matchedWords;
+            push(@results, \%_line);
+        }   
+    }
+    
+    return @results;
+}
+
 sub parseDate {
     my $date = $_[0];
-    say("Date to parse: ".$date);
+    #say("Date to parse: ".$date);
     
     $date =~ s/(\d{1,2})(st|nd|rd|th),/$1/;
-    say("Date: ".$date);
+    #say("Date: ".$date);
     
     my $datePattern = "%B %e %Y";
     my $parser = DateTime::Format::Strptime->new(pattern=>$datePattern, locale=>"en_US");
@@ -80,7 +140,7 @@ sub parseDate {
 }
 
 sub dateToString {
-    print($_[0]);
+    #print($_[0]);
     my $dateStringPattern = "%d.%m.%Y";
     my $date = $_[0];
     my $strDateTime = DateTime::Format::Strptime::strftime($dateStringPattern, $date) or die;
@@ -126,5 +186,19 @@ sub report1 {
 
 }
 
+sub compareArraysLengths {
+    my %hash1 = %$a;
+    my %hash2 = %$b;
 
+    say("Compare lengths of $hash1{matched} - $hash2{matched}");    
+    
+    my @array1 = $hash1{matched};
+    my @array2 = $hash2{matched};
+    
+    return @array1.length() - @array2.length();
+}
 
+sub arrayToStr {
+    my @array = $_[0]; 
+    return join(", ", @array);     
+}
